@@ -22,10 +22,19 @@ import os
 import time
 from collections import deque
 import urllib.request
+import json
 
 import cv2
 import numpy as np
 import onnxruntime as ort
+
+from settings import load_settings
+from ollama_client import (
+    OllamaWorker,
+    normalize_ollama_model,
+    normalize_ollama_url,
+    read_prompt_file,
+)
 
 EMOTIONS = ["neutral", "happiness", "surprise", "sadness", "anger", "disgust", "fear", "contempt"]
 HF_MODEL_URL = "https://huggingface.co/onnxmodelzoo/emotion-ferplus-8/resolve/main/emotion-ferplus-8.onnx"
@@ -139,18 +148,57 @@ def open_camera(cam_index: int):
 
 
 def main():
+    cfg = load_settings()
+    if cfg.video_backend:
+        os.environ["VIDEO_BACKEND"] = cfg.video_backend
+
     model_path = ensure_model(os.path.join("model", "emotion-ferplus-8.onnx"))
     face_cascade, sess, in_name, out_name = init_runtime(model_path)
 
-    smooth_window = int(os.getenv("SMOOTH_WINDOW", "10"))
-    conf_thresh = float(os.getenv("CONF_THRESH", "0.45"))
+    smooth_window = cfg.smooth_window
+    conf_thresh = cfg.conf_thresh
     probs_hist = deque(maxlen=smooth_window)
 
-    cam_index = int(os.getenv("CAM_INDEX", "0"))
+    cam_index = cfg.cam_index
     cap = open_camera(cam_index)
 
-    target_ms = float(os.getenv("TARGET_FRAME_MS", "0"))  # 0 = no sleep
+    target_ms = cfg.target_frame_ms  # 0 = no sleep
     os.makedirs("captures", exist_ok=True)
+
+    ollama_requested = cfg.ollama.requested
+    ollama_active = False
+    ollama_worker = None
+    ollama_threshold = float(cfg.ollama.change_threshold)
+    ollama_cooldown_s = float(cfg.ollama.min_seconds_between)
+    ollama_min_conf = float(cfg.ollama.min_conf) if cfg.ollama.min_conf is not None else conf_thresh
+    ollama_last_submit_ts = 0.0
+    prev_mean_probs = None
+    prev_top_label = ""
+    prev_top_conf = 0.0
+
+    ollama_overlay_enabled = bool(ollama_requested and cfg.ollama.overlay)
+    ollama_overlay_text = ""
+    ollama_overlay_ts = 0.0
+
+    if ollama_requested:
+        prompt = (cfg.ollama.prompt or "").strip()
+        prompt_path = (cfg.ollama.prompt_file or "ollama_prompt.txt").strip()
+        if not prompt:
+            prompt = read_prompt_file(prompt_path).strip()
+        if not prompt:
+            msg = f"(set prompt in {prompt_path} or OLLAMA_PROMPT)"
+            print(f"[ollama] enabled but no prompt found {msg}")
+            ollama_overlay_text = msg
+        else:
+            ollama_url = normalize_ollama_url(cfg.ollama.url)
+            ollama_model = normalize_ollama_model(cfg.ollama.model)
+            ollama_timeout_s = float(cfg.ollama.timeout_s)
+            ollama_worker = OllamaWorker(ollama_url, ollama_model, prompt, timeout_s=ollama_timeout_s)
+            ollama_active = True
+            print(
+                f"[ollama] enabled model={ollama_model} url={ollama_url} "
+                f"threshold={ollama_threshold:.2f} cooldown={ollama_cooldown_s:.1f}s"
+            )
 
     fps_t0 = time.time()
     fps_frames = 0
@@ -176,6 +224,44 @@ def main():
         top_label = EMOTIONS[top]
         top_conf = float(mean_probs[top])
 
+        if ollama_active and ollama_worker is not None and prev_mean_probs is not None:
+            non_neutral_idx = [i for i, e in enumerate(EMOTIONS) if e != "neutral"]
+            if non_neutral_idx:
+                max_abs_change = float(np.max(np.abs(mean_probs[non_neutral_idx] - prev_mean_probs[non_neutral_idx])))
+            else:
+                max_abs_change = float(np.max(np.abs(mean_probs - prev_mean_probs)))
+            now = time.time()
+            if (
+                max_abs_change >= ollama_threshold
+                and top_conf >= ollama_min_conf
+                and (now - ollama_last_submit_ts) >= ollama_cooldown_s
+            ):
+                probs_map = {EMOTIONS[i]: float(mean_probs[i]) for i in range(len(EMOTIONS))}
+                prev_map = {EMOTIONS[i]: float(prev_mean_probs[i]) for i in range(len(EMOTIONS))}
+                deltas = {k: probs_map[k] - prev_map[k] for k in probs_map.keys()}
+                changed = sorted(
+                    [{"emotion": k, "prev": prev_map[k], "cur": probs_map[k], "delta": deltas[k]} for k in probs_map.keys()],
+                    key=lambda d: abs(d["delta"]),
+                    reverse=True,
+                )
+
+                ctx = {
+                    "top_label": top_label,
+                    "top_conf": f"{top_conf:.3f}",
+                    "top_conf_pct": f"{top_conf * 100:.1f}",
+                    "prev_top_label": prev_top_label,
+                    "prev_top_conf": f"{prev_top_conf:.3f}",
+                    "prev_top_conf_pct": f"{prev_top_conf * 100:.1f}",
+                    "delta_max": f"{max_abs_change:.3f}",
+                    "delta_max_pct": f"{max_abs_change * 100:.1f}",
+                    "probs_json": json.dumps(probs_map, ensure_ascii=False),
+                    "prev_probs_json": json.dumps(prev_map, ensure_ascii=False),
+                    "changed_json": json.dumps(changed, ensure_ascii=False),
+                }
+
+                if ollama_worker.submit(ctx):
+                    ollama_last_submit_ts = now
+
         cv2.rectangle(frame, (x, y), (x + w, y + h), (80, 255, 80), 2)
 
         if top_conf < conf_thresh:
@@ -190,11 +276,32 @@ def main():
             fps_frames = 0
             fps_t0 = time.time()
 
+        if ollama_overlay_enabled and ollama_worker is not None:
+            if ollama_worker.last_text and ollama_worker.last_ts > ollama_overlay_ts:
+                ollama_overlay_text = str(ollama_worker.last_text).strip()
+                ollama_overlay_ts = float(ollama_worker.last_ts)
+            elif ollama_worker.last_error and ollama_worker.last_ts > ollama_overlay_ts and not ollama_overlay_text:
+                ollama_overlay_text = f"(ollama error: {ollama_worker.last_error})"
+                ollama_overlay_ts = float(ollama_worker.last_ts)
+
+        ollama_line = None
+        if ollama_overlay_enabled:
+            if ollama_overlay_text:
+                msg = ollama_overlay_text
+            elif not ollama_active:
+                msg = "(ollama disabled)"
+            else:
+                msg = "(waiting for first trigger...)"
+            if len(msg) > 100:
+                msg = msg[:97].rstrip() + "..."
+            ollama_line = f"Ollama: {msg}"
+
         emotion_lines = format_emotion_lines(EMOTIONS, mean_probs)
         overlay_text(frame, [
             f"FERPlus (smoothed {len(probs_hist)}/{smooth_window})",
             f"Top: {shown}",
             f"FPS: {fps:.1f}",
+            *( [ollama_line] if ollama_line else [] ),
             "Keys: q=quit, s=save",
             "All emotions:",
             *emotion_lines,
@@ -211,11 +318,17 @@ def main():
             cv2.imwrite(os.path.join("captures", f"{ts}_face64.jpg"), face_64)
             print(f"[save] captures/{ts}_frame.jpg and captures/{ts}_face64.jpg")
 
+        prev_mean_probs = mean_probs.copy()
+        prev_top_label = top_label
+        prev_top_conf = top_conf
+
         if target_ms > 0:
             time.sleep(target_ms / 1000.0)
 
     cap.release()
     cv2.destroyAllWindows()
+    if ollama_worker is not None:
+        ollama_worker.close()
 
 
 if __name__ == "__main__":

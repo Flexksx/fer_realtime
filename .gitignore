@@ -4,3 +4,4 @@ captures/
 model/
 *.onnx
 .DS_Store
+.env

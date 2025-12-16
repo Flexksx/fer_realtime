@@ -14,6 +14,18 @@ pip install -r requirements.txt
 python app.py
 ```
 
+Config files:
+- `.env` (git-ignored): optional environment overrides (loaded automatically)
+- `config.json`: JSON defaults; environment variables override these
+
+Example (ngrok Ollama server):
+```bash
+OLLAMA_ENABLED=1 \
+OLLAMA_URL="https://341f48ced197.ngrok-free.app" \
+OLLAMA_MODEL="ollama/deepseek-r1:1.5b" \
+python app.py
+```
+
 Controls:
 - q = quit
 - s = save snapshot to ./captures/
@@ -24,5 +36,16 @@ Environment variables:
 - CONF_THRESH (default 0.45)
 - CAM_INDEX (default 0)
 - TARGET_FRAME_MS (default 0)
+- OLLAMA_ENABLED (default 0; set to 1 to enable Ollama calls)
+- OLLAMA_URL (default http://localhost:11434; you can also pass a full endpoint like .../api/generate)
+- OLLAMA_MODEL (default llama3.1; accepts CrewAI-style `ollama/<model>` too)
+- OLLAMA_PROMPT (inline prompt text; overrides file)
+- OLLAMA_PROMPT_FILE (default ollama_prompt.txt; students edit this; lines starting with # are ignored)
+- OLLAMA_CHANGE_THRESHOLD (default 0.15 = 15% probability change trigger)
+- (Note: trigger delta ignores `neutral` to avoid it dominating changes)
+- OLLAMA_MIN_SECONDS_BETWEEN (default 5; cooldown to avoid spamming)
+- OLLAMA_MIN_CONF (default = CONF_THRESH; only trigger when confident)
+- OLLAMA_TIMEOUT_S (default 30)
+- OLLAMA_OVERLAY (default 1; show last Ollama response on video and keep it until the next trigger succeeds)
 
 Ethics note: expression classification is not a diagnosis; use only with consent.

@@ -1,0 +1,19 @@
+{
+  "smooth_window": 10,
+  "conf_thresh": 0.45,
+  "cam_index": 0,
+  "target_frame_ms": 0,
+  "video_backend": "",
+  "ollama": {
+    "enabled": true,
+    "url": "https://341f48ced197.ngrok-free.app",
+    "model": "ollama/deepseek-r1:1.5b",
+    "prompt": "say hy!",
+    "prompt_file": "ollama_prompt.txt",
+    "change_threshold": 0.025,
+    "min_seconds_between": 5,
+    "min_conf": null,
+    "timeout_s": 30,
+    "overlay": true
+  }
+}
