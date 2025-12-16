@@ -4,7 +4,7 @@
 # - {{top_label}}, {{top_conf}}, {{top_conf_pct}}
 # - {{prev_top_label}}, {{prev_top_conf}}, {{prev_top_conf_pct}}
 # - {{delta_max}}, {{delta_max_pct}}   (max per-emotion absolute change)
-# - {{probs_json}}, {{prev_probs_json}}, {{changed_json}}
+# - {{probs_json}}, {{prev_probs_json}}, {{weights_json}}, {{changed_json}}
 #
 # Example:
 # You are a classroom assistant. A student's facial expression probabilities changed.

@@ -4,6 +4,16 @@
   "cam_index": 0,
   "target_frame_ms": 0,
   "video_backend": "",
+  "emotion_weights": {
+    "neutral": 0.0,
+    "happiness": 1.0,
+    "surprise": 1.0,
+    "sadness": 1.0,
+    "anger": 1.0,
+    "disgust": 1.0,
+    "fear": 1.0,
+    "contempt": 1.0
+  },
   "ollama": {
     "enabled": true,
     "url": "https://341f48ced197.ngrok-free.app",

@@ -152,6 +152,9 @@ def main():
     if cfg.video_backend:
         os.environ["VIDEO_BACKEND"] = cfg.video_backend
 
+    weights_by_emotion = getattr(cfg, "emotion_weights", {}) or {}
+    weights_vec = np.array([float(weights_by_emotion.get(e, 1.0)) for e in EMOTIONS], dtype=np.float32)
+
     model_path = ensure_model(os.path.join("model", "emotion-ferplus-8.onnx"))
     face_cascade, sess, in_name, out_name = init_runtime(model_path)
 
@@ -225,11 +228,8 @@ def main():
         top_conf = float(mean_probs[top])
 
         if ollama_active and ollama_worker is not None and prev_mean_probs is not None:
-            non_neutral_idx = [i for i, e in enumerate(EMOTIONS) if e != "neutral"]
-            if non_neutral_idx:
-                max_abs_change = float(np.max(np.abs(mean_probs[non_neutral_idx] - prev_mean_probs[non_neutral_idx])))
-            else:
-                max_abs_change = float(np.max(np.abs(mean_probs - prev_mean_probs)))
+            abs_delta = np.abs(mean_probs - prev_mean_probs) * weights_vec
+            max_abs_change = float(np.max(abs_delta))
             now = time.time()
             if (
                 max_abs_change >= ollama_threshold
@@ -239,9 +239,20 @@ def main():
                 probs_map = {EMOTIONS[i]: float(mean_probs[i]) for i in range(len(EMOTIONS))}
                 prev_map = {EMOTIONS[i]: float(prev_mean_probs[i]) for i in range(len(EMOTIONS))}
                 deltas = {k: probs_map[k] - prev_map[k] for k in probs_map.keys()}
+                weights_map = {EMOTIONS[i]: float(weights_vec[i]) for i in range(len(EMOTIONS))}
                 changed = sorted(
-                    [{"emotion": k, "prev": prev_map[k], "cur": probs_map[k], "delta": deltas[k]} for k in probs_map.keys()],
-                    key=lambda d: abs(d["delta"]),
+                    [
+                        {
+                            "emotion": k,
+                            "weight": weights_map[k],
+                            "prev": prev_map[k],
+                            "cur": probs_map[k],
+                            "delta": deltas[k],
+                            "weighted_delta": weights_map[k] * deltas[k],
+                        }
+                        for k in probs_map.keys()
+                    ],
+                    key=lambda d: abs(d["weighted_delta"]),
                     reverse=True,
                 )
 
@@ -256,6 +267,7 @@ def main():
                     "delta_max_pct": f"{max_abs_change * 100:.1f}",
                     "probs_json": json.dumps(probs_map, ensure_ascii=False),
                     "prev_probs_json": json.dumps(prev_map, ensure_ascii=False),
+                    "weights_json": json.dumps(weights_map, ensure_ascii=False),
                     "changed_json": json.dumps(changed, ensure_ascii=False),
                 }
 

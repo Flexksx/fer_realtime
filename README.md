@@ -18,6 +18,9 @@ Config files:
 - `.env` (git-ignored): optional environment overrides (loaded automatically)
 - `config.json`: JSON defaults; environment variables override these
 
+Emotion tuning:
+- `config.json` supports `emotion_weights` (per-emotion scalars) to scale how much each emotion contributes to the Ollama trigger delta; `neutral` defaults to `0.0` (ignored) but students can raise it to include it.
+
 Example (ngrok Ollama server):
 ```bash
 OLLAMA_ENABLED=1 \

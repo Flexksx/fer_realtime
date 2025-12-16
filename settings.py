@@ -80,6 +80,7 @@ class AppSettings:
     cam_index: int
     target_frame_ms: float
     video_backend: str
+    emotion_weights: dict
     ollama: OllamaSettings
 
 
@@ -94,6 +95,16 @@ def load_settings(config_path: str = "config.json", env_path: str = ".env") -> A
     video_backend = _env("VIDEO_BACKEND")
     if video_backend is None:
         video_backend = str(_get(cfg, "video_backend", "") or "").strip()
+
+    emotion_weights = _get(cfg, "emotion_weights", {}) or {}
+    if not isinstance(emotion_weights, dict):
+        emotion_weights = {}
+    parsed_weights = {}
+    for k, v in emotion_weights.items():
+        try:
+            parsed_weights[str(k)] = float(v)
+        except Exception:
+            continue
 
     ollama_requested = _as_bool(_env("OLLAMA_ENABLED"), _as_bool(_get(cfg, "ollama.enabled", False), False))
     ollama_overlay = _as_bool(_env("OLLAMA_OVERLAY"), _as_bool(_get(cfg, "ollama.overlay", True), True))
@@ -118,6 +129,7 @@ def load_settings(config_path: str = "config.json", env_path: str = ".env") -> A
         cam_index=cam_index,
         target_frame_ms=target_frame_ms,
         video_backend=video_backend,
+        emotion_weights=parsed_weights,
         ollama=OllamaSettings(
             requested=ollama_requested,
             overlay=ollama_overlay,
@@ -131,4 +143,3 @@ def load_settings(config_path: str = "config.json", env_path: str = ".env") -> A
             timeout_s=ollama_timeout_s,
         ),
     )
-
