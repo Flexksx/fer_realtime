@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+captures/
+model/
+*.onnx
+.DS_Store
