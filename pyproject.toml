@@ -1,0 +1,106 @@
+[project]
+name = "artificial-intelligence-labs"
+version = "0.1.0"
+description = "Repo with environment and tools needed for AI Labs"
+authors = [{ name = "Flexksx", email = "cristian.cretu2808@gmail.com" }]
+readme = "README.md"
+requires-python = ">=3.12, <4.0"
+
+dependencies = [
+    "pandas>=2.2.3,<3.0.0",
+    "numpy>=2.2.4,<3.0.0",
+    "python-dotenv>=1.1.0,<2.0.0",
+    "pydantic>=2.11.3,<3.0.0",
+    "tabulate>=0.9.0,<0.10.0",
+    "rich>=14.0.0,<15.0.0",
+    "sets>=0.3.2,<0.4.0",
+    "pytest>=8.4.2,<9.0.0",
+    "flask>=3.1.2,<4.0.0",
+    "torch>=2.9.1",
+    "datasets>=4.4.1",
+    "huggingface-hub>=1.2.1",
+    "pillow>=12.0.0",
+    "tqdm>=4.67.1",
+    "matplotlib>=3.10.7",
+    "scikit-learn>=1.7.2",
+    "ultralytics>=8.3.235",
+    "opencv-python-headless>=4.11.0.86",
+    "python-telegram-bot>=22.5",
+    "pydantic-settings>=2.12.0",
+]
+
+[project.scripts]
+tf = "expert_systems.tests.forward_chaining_test:main"
+tb = "expert_systems.tests.backward_chaining_test:main"
+qf = "expert_systems.tests.forward_questions:main"
+qb = "expert_systems.tests.backward_questions:main"
+snake_server = "snake.server.server:main"
+nng = "nonograms.main:main"
+test-nonogram = "nonograms.test_generator_solver:main"
+jupyter-lab = "jupyterlab.labapp:main"
+meme-bot = "cnn.app.main:main"
+
+# -----------------------
+# Build System (Replaced Poetry with Hatchling)
+# -----------------------
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# Explicitly tell hatchling to include your source folders
+[tool.hatch.build.targets.wheel]
+packages = ["expert_systems", "snake", "cnn"]
+
+# -----------------------
+# Dependency Groups (Standard uv style)
+# -----------------------
+[dependency-groups]
+dev = [
+    "ruff>=0.14.7",
+    "basedpyright>=1.1.0", # Faster alternative to Pylance, optional but recommended
+]
+
+# -----------------------
+# Tool Configs
+# -----------------------
+
+[tool.pyright]
+include = ["expert_systems", "snake", "cnn", "nonograms"]
+exclude = ["**/node_modules", "**/__pycache__", "**/.venv", "**/dist"]
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "standard"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra"
+testpaths = ["nonograms/test"]
+python_files = ["test_*.py", "*_test.py", "*_chaining.py"]
+python_functions = ["test_*"]
+norecursedirs = [".git", ".venv", "dist", "build", "__pycache__"]
+
+[tool.ruff]
+line-length = 88
+indent-width = 4
+target-version = "py312"
+extend-exclude = [".venv", "dist", "__pycache__", "alembic"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RET", "ARG", "PL", "RUF"]
+ignore = ["PLR0913", "PLR2004", "PLR0911"]
+fixable = ["ALL"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["expert_systems", "snake", "cnn", "nonograms"]
+section-order = [
+    "future",
+    "standard-library",
+    "third-party",
+    "first-party",
+    "local-folder",
+]
+lines-after-imports = 2
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
