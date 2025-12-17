@@ -7,7 +7,7 @@ import urllib.request
 
 def read_text_file(path: str) -> str:
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return f.read()
     except FileNotFoundError:
         return ""
@@ -48,15 +48,21 @@ def normalize_ollama_model(model: str) -> str:
 
 
 def ollama_generate(url: str, model: str, prompt: str, timeout_s: float) -> str:
-    payload = json.dumps({"model": model, "prompt": prompt, "stream": False}).encode("utf-8")
-    req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+    payload = json.dumps({"model": model, "prompt": prompt, "stream": False}).encode(
+        "utf-8"
+    )
+    req = urllib.request.Request(
+        url, data=payload, headers={"Content-Type": "application/json"}
+    )
     with urllib.request.urlopen(req, timeout=timeout_s) as resp:
         data = json.loads(resp.read().decode("utf-8"))
     return (data.get("response") or "").strip()
 
 
 class OllamaWorker:
-    def __init__(self, url: str, model: str, prompt_template: str, timeout_s: float = 30.0):
+    def __init__(
+        self, url: str, model: str, prompt_template: str, timeout_s: float = 30.0
+    ):
         self.url = url
         self.model = model
         self.prompt_template = prompt_template
@@ -64,7 +70,9 @@ class OllamaWorker:
 
         self._q: queue.Queue = queue.Queue(maxsize=1)
         self._stop = threading.Event()
-        self._thread = threading.Thread(target=self._run, name="ollama-worker", daemon=True)
+        self._thread = threading.Thread(
+            target=self._run, name="ollama-worker", daemon=True
+        )
 
         self.last_text = None
         self.last_error = None
@@ -96,7 +104,9 @@ class OllamaWorker:
                 continue
             try:
                 prompt = render_prompt_template(self.prompt_template, ctx)
-                self.last_text = ollama_generate(self.url, self.model, prompt, self.timeout_s)
+                self.last_text = ollama_generate(
+                    self.url, self.model, prompt, self.timeout_s
+                )
                 self.last_error = None
                 self.last_ts = time.time()
                 if self.last_text:
@@ -107,4 +117,3 @@ class OllamaWorker:
                 self.last_error = str(e)
                 self.last_ts = time.time()
                 print(f"[ollama] error: {self.last_error}")
-
