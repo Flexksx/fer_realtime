@@ -1,0 +1,6 @@
+{
+  "include": ["expert_systems", "cnn", "nonograms", "snake"],
+  "exclude": ["**/node_modules", "**/__pycache__", "**/.venv", "**/dist"],
+  "venvPath": ".",
+  "venv": ".venv"
+}

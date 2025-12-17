@@ -1,0 +1,50 @@
+---
+alwaysApply: true
+---
+
+# Project description
+
+This repo contains code for various laboratory assignments for the Artificial Intelligence course of the Technical University of Moldova.
+
+Each directory is a separate assignment, with its own README.md file describing the task.
+
+Before starting on a user request, read the corresponding README.md file for context.
+
+## General Instructions
+
+- Aim for the highest grade and structure your work accordingly.
+- Use clear, modular code without comments or docstrings. Respect clean code principles, SOLID principles, and design patterns.
+- Focus on clarity and maintainability, avoid over-engineering but ensure the code is well-structured.
+- Make the code easy to read and easy to present to a professor when asked.
+- Think hard before implementing a class. The user requests are often simple and do not require complex abstractions. Focus on accomplishing a single task well at a time.
+
+## Tech Stack
+
+- Python 3.12
+- Use `pydantic` to create DTOs.
+- Follow a domain-driven, layered architecture
+- Follow clean code practices, SOLID, YAGNI, KISS, DRY principles.
+
+### Technical preferences
+
+- Follow PEP 8 style guide for Python code.
+- Use type hints for function signatures and variable declarations.
+- Prefer f-strings for string formatting.
+- Write classes when it is necessary to encapsulate related data and behavior.
+- Use functions only for small, reusable pieces of logic that do not require maintaining state.
+- Avoid comments that explain what the code does; instead, write self-explanatory code. Use comments to explain why certain decisions were made. Comments in general are discouraged.
+- Docstrings are not needed for trivial functions, but should be used for complex functions and classes.
+
+### Architecture
+
+Each module has to be grouped by its domain and can have the following layers.
+
+- `service.py` - service class that handles the business logic directly
+- `repository.py` - repository class that handles accessing stored data
+- `model.py` - file that contains any custom data model we may use for the services and the repo
+- `schema.py` - file that contains usually DTOs for service-to-service communcation and clear method argument passing
+- `utils.py` - file that contains any kind of utility methods and static functions that are related ot the domain
+- `resources.py` - file that contains any static assets for the domain
+- `dependencies.py` - file that contains and wires all the dependant services together.
+- `error.py` - contains any domain errors, like `ThingNotFoundError` or `ThingUnavailableError` 
+

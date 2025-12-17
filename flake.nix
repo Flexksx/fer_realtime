@@ -61,6 +61,7 @@
           ];
 
           shellHook = ''
+            export LD_LIBRARY_PATH="${pkgs.gcc.cc.lib}/lib:${pkgs.ncurses}/lib:${pkgs.mesa}/lib:${pkgs.libGL}/lib:${pkgs.glib.out}/lib:$LD_LIBRARY_PATH"
             Next steps (inside this shell):
 
               1) uv sync

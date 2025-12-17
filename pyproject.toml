@@ -27,6 +27,7 @@ dependencies = [
     "opencv-python-headless>=4.11.0.86",
     "python-telegram-bot>=22.5",
     "pydantic-settings>=2.12.0",
+    "onnxruntime>=1.23.2",
 ]
 
 [project.scripts]
